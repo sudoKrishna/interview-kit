@@ -2,7 +2,10 @@
   "name": "interview-prep-kit",
   "version": "1.0.0",
   "private": true,
-  "workspaces": ["packages/*", "apps/*"],
+  "workspaces": [
+    "packages/*",
+    "apps/*"
+  ],
   "scripts": {
     "dev": "concurrently -n api,web -c blue,green \"npm run dev -w @prepkit/api\" \"npm run dev -w @prepkit/web\"",
     "test": "npm test -w @prepkit/api",
@@ -12,5 +15,8 @@
     "concurrently": "^8.2.2",
     "tsx": "^4.19.0",
     "typescript": "^5.5.0"
+  },
+  "dependencies": {
+    "framer-motion": "^13.4.3"
   }
 }

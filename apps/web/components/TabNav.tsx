@@ -1,5 +1,7 @@
 "use client";
 
+import { motion } from "framer-motion";
+
 export type Tab = "brief" | "role" | "questions" | "flashcards" | "schedule" | "practice";
 
 const TABS: { key: Tab; label: string }[] = [
@@ -25,24 +27,18 @@ export default function TabNav({
       <ul className="flex min-w-max gap-2 px-1">
         {TABS.map((t) => {
           const active = tab === t.key;
-          const badge =
-            t.key === "questions" ? badgeCount?.questions :
-            t.key === "flashcards" ? badgeCount?.flashcards :
-            undefined;
+          const badge = t.key === "questions" ? badgeCount?.questions : t.key === "flashcards" ? badgeCount?.flashcards : undefined;
           return (
             <li key={t.key}>
-              <button
+              <motion.button
+                whileTap={{ scale: 0.96 }}
                 onClick={() => onChange(t.key)}
                 aria-current={active ? "page" : undefined}
-                className={active ? "tab-btn-active" : "tab-btn-idle"}
+                className={`${active ? "tab-btn-active" : "tab-btn-idle"} relative overflow-hidden`}
               >
-                {t.label}
-                {badge !== undefined && badge > 0 && (
-                  <span className={`ml-1.5 rounded-full px-1.5 py-0.5 text-xs ${active ? "bg-white/20" : "bg-slate-100"}`}>
-                    {badge}
-                  </span>
-                )}
-              </button>
+                <span className="relative z-[1]">{t.label}</span>
+                {badge !== undefined && badge > 0 && <span className="tab-badge relative z-[1] ml-1.5 px-1.5 py-0.5 text-xs">{badge}</span>}
+              </motion.button>
             </li>
           );
         })}
