@@ -90,15 +90,39 @@ except through `runPipeline`, which is the only place that sequences them.
 ## Retrieval approach & sources
 
 - **Job description:** pasted text only — never fetched from a job board.
-- **Company site:** `crawler.ts` fetches the homepage, extracts every same-origin link, and scores each
-  by keyword signal in the URL + anchor text (`careers`, `jobs`, `handbook`, `how we hire`, etc. for hiring;
-  `about`, `mission`, `engineering blog`, etc. for company context). No fixed path list — this is
-  deliberate, since the brief calls out that hiring pages live at unpredictable paths. The top-scoring
-  hiring page(s) then top-scoring about pages are fetched up to `CRAWL_MAX_PAGES`, with a small delay
-  between requests and per-request timeouts.
-- **Public interview discussion:** `search.ts` queries for public discussion of the company's interview
-  process (best-effort; a provider that returns nothing produces an honest "no discussion found" state,
-  not a fabricated one).
+- **Company site:** `crawler.ts` does a breadth-first crawl up to two link-hops deep — homepage, then its
+  top hiring/about candidates, then (only if a hiring page still hasn't turned up) the links found *on
+  those pages*, e.g. a "Careers" page linking to "Careers → Engineering". Every hop scores same-origin
+  links by keyword signal in the URL + anchor text (`careers`, `jobs`, `handbook`, `how we hire`, `life at`,
+  etc. for hiring; `about`, `mission`, `engineering blog`, `culture`, etc. for company context) — no fixed
+  path list, since the brief calls out that hiring pages live at unpredictable paths. Fetches are capped at
+  `CRAWL_MAX_PAGES`, with a small delay between requests and per-request timeouts.
+- **ATS fallback (`findCareersPageViaSearch`, in `search.ts`):** if the company's own site can't be
+  crawled at all (WAF-blocked, DNS failure, timeout) or was crawled but no hiring page was found on it, the
+  pipeline searches `"{company} careers"` / `"{company} jobs"` via DuckDuckGo and fetches the first hit
+  hosted on a known applicant-tracking platform (Greenhouse, Lever, Workday, Ashby, SmartRecruiters,
+  Workable, BambooHR, iCIMS, Jobvite, Breezy). ATS-hosted job boards are almost always plain
+  server-rendered HTML and rarely sit behind the same bot-mitigation as a corporate marketing domain, so
+  this recovers a real hiring page without attempting to bypass whatever blocked the direct crawl.
+- **Public interview discussion (`searchCompanyInterviewDiscussion`, in `search.ts`):** the same DuckDuckGo
+  search, filtered to known discussion sites (Glassdoor, Reddit, Blind, levels.fyi, Medium, HN, Indeed,
+  Quora, Stack Overflow, LeetCode Discuss). DuckDuckGo's HTML-only endpoint (`html.duckduckgo.com`) needs
+  no API key, but result links are redirect wrappers
+  (`//duckduckgo.com/l/?uddg=<url-encoded target>&rut=...`) that only exist as raw `href` attributes — they
+  have to be pulled out of the markup *before* `htmlToText()` strips tags, or the parser sees nothing. It
+  also throttles bursts of automated queries with a `202` "checking your browser" holding page instead of
+  a proper rate-limit error; `duckDuckGoSearch()` treats that (or a `200` with no result markup at all) as
+  a transient throttle and retries with the same exponential backoff used for the LLM client, up to 3
+  retries. A provider that still returns nothing after retries produces an honest "no discussion found"
+  state, not a fabricated one.
+- **Bot-mitigation detection (`detectBlockReason`, in `fetcher.ts`):** some corporate sites (Cloudflare,
+  Akamai, PerimeterX) return a real HTML document — sometimes even with a `200` — that's actually a bot
+  challenge page, not the requested content. `fetchPage()` sniffs the response for known challenge
+  signatures (`Ray ID`, `AkamaiGHost`, `Please verify you are a human`, etc.) and reports a specific,
+  honest failure reason ("blocked by Cloudflare bot protection") instead of silently treating challenge
+  HTML as real page content, or reporting a bare, uninformative status code. We do not attempt to solve or
+  evade these challenges — a blocked corporate domain is exactly the "company URL is unreachable" edge
+  case the brief asks to be handled honestly, which is what the ATS fallback above exists for.
 - Every fetch goes through `fetcher.ts`: robots.txt is checked before any non-robots request, content-type
   is restricted to `text/html`/`text/plain`, response size is capped and streamed with a hard limit, and
   `assertPublicUrl()` rejects loopback/private/link-local addresses via both literal-IP and DNS-resolution
@@ -195,9 +219,80 @@ restored on reload, so "what's covered" survives a page refresh.
 
 ## Known limitations
 
-- `search.ts`'s public-discussion lookup depends on whichever free search API is configured; it can return
-  nothing for smaller/lesser-known companies, which is reported honestly rather than papered over.
-- The crawler ranks links heuristically (keyword scoring) rather than following an ATS/careers-page schema,
-  so an unusually named hiring page (no "careers"/"jobs"/"hiring" signal anywhere) can be missed.
+- DuckDuckGo's HTML endpoint is unauthenticated and free, which is exactly why it throttles: a burst of
+  automated queries from the same IP (heavier on a shared/datacenter IP than a residential one) can degrade
+  to a persistent "checking your browser" response that even backoff+retry won't clear within a request's
+  budget. When that happens, both the discussion search and the ATS fallback degrade to "nothing found"
+  honestly rather than fabricating a result — but it does mean search-dependent research can be weaker on
+  a heavily-rate-limited IP than it would be from a normal deployment.
+- The crawler and ATS fallback both rank/match heuristically (keyword scoring, a fixed list of known ATS
+  hostnames) rather than following a guaranteed schema, so an unusually named hiring page on an unusual ATS
+  platform can still be missed.
+- We deliberately do not run a headless browser or attempt to defeat bot-mitigation challenges (Cloudflare/
+  Akamai/PerimeterX) — a JS-only SPA career page or a WAF-blocked domain is reported as an honest gap
+  (`crawl.failures[]`), consistent with the brief's "respect robots.txt and site terms" instruction.
 - Regeneration granularity is per-section/per-category, not per-question — regenerating "technical"
   rebuilds all non-pinned/non-edited technical questions together rather than one at a time.
+
+## Deployment
+
+Two separately-deployable services plus a managed database — every piece has a genuine free tier.
+
+### 1. Database — MongoDB Atlas
+
+1. Create a free account at [mongodb.com/cloud/atlas](https://www.mongodb.com/cloud/atlas) and a free
+   **M0** cluster.
+2. Database Access → add a user with a password (not your Atlas account password).
+3. Network Access → add `0.0.0.0/0` (Atlas free tier has no VPC peering, so the API's outbound IP can't be
+   pinned in advance) — access is still gated by the username/password in the connection string.
+4. Copy the connection string (`mongodb+srv://<user>:<password>@<cluster>.mongodb.net/interview-prep-kit`)
+   — this is `MONGODB_URI`.
+
+### 2. Backend — Render (or Railway / Fly.io)
+
+The API is a long-running Express process with server-side sessions and a pipeline that can take 60–90s
+per kit, so it needs a **persistent server**, not a serverless function with a short execution limit —
+that's why the backend and frontend are deployed to different kinds of platforms. Render's free tier is
+used here as the concrete example; Railway and Fly.io work the same way.
+
+1. Push this repo to GitHub (or GitLab).
+2. On [render.com](https://render.com): **New → Web Service**, connect the repo.
+3. Root directory: repo root (it's an npm-workspaces monorepo, not `apps/api`).
+   - **Build command:** `npm install && npm run build -w @prepkit/api`
+   - **Start command:** `npm run start -w @prepkit/api`
+4. Add environment variables (Render → Environment), matching `.env.example`:
+   `MONGODB_URI`, `SESSION_SECRET` (generate with `openssl rand -hex 32`), `CLIENT_ORIGIN` (set this once
+   you know the frontend's URL from step 3 below), `PORT` (Render sets `PORT` itself — the app already
+   reads `process.env.PORT`), `LLM_BASE_URL`, `LLM_API_KEY`, `LLM_MODEL`, `LLM_MAX_RETRIES`,
+   `MAX_COVERAGE_PASSES`, `CRAWL_MAX_PAGES`, and **`ALLOW_PRIVATE_URLS=false`** — this must not be `true`
+   in production, since it's what makes `assertPublicUrl()` reject internal/loopback addresses.
+5. Deploy. Note the resulting URL, e.g. `https://prepkit-api.onrender.com`.
+
+### 3. Frontend — Vercel
+
+Next.js deploys natively to Vercel's free tier.
+
+1. On [vercel.com](https://vercel.com): **New Project**, import the same repo.
+2. Root directory: `apps/web` (Vercel builds a single app per project in a monorepo; point it here so it
+   doesn't try to build the API too).
+3. Framework preset: Next.js (auto-detected). Build/output settings can stay default.
+4. Environment variable: `NEXT_PUBLIC_API_URL` = the Render URL from step 2 (e.g.
+   `https://prepkit-api.onrender.com`).
+5. Deploy. Note the resulting URL, e.g. `https://prepkit-web.vercel.app`.
+6. Go back to the Render service and set `CLIENT_ORIGIN` to this Vercel URL, then redeploy the API —
+   `cors()` is configured to only allow this origin, and session cookies are scoped to it.
+
+### 4. Verify
+
+- Visit the Vercel URL, register an account, and create a kit against a real company URL end-to-end.
+- Run the batch entry point against the deployed stack from your machine by pointing `.env` at the same
+  `MONGODB_URI`/`LLM_*` values (the evaluator talks to Mongo and the LLM directly — it does not go through
+  the deployed API — so no separate deployment step is needed for it to work against production data).
+
+### Notes
+
+- Render's free tier spins down after inactivity; the first request after idling can take ~30–60s to cold
+  start, in addition to the pipeline's own runtime — the frontend's progress view/polling already tolerates
+  this without a hard timeout.
+- Never commit `.env` files. Secrets (`LLM_API_KEY`, `SESSION_SECRET`, `MONGODB_URI`) are set directly in
+  each platform's environment-variable UI.
