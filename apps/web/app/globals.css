@@ -1,24 +1,99 @@
-@import "tailwindcss";
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
 
-@theme {
-  --font-sans: var(--font-geist-sans), ui-sans-serif, system-ui, sans-serif;
-  --font-mono: var(--font-geist-mono), ui-monospace, monospace;
-
-  --color-brand-50: #eef2ff;
-  --color-brand-100: #e0e7ff;
-  --color-brand-500: #6366f1;
-  --color-brand-600: #4f46e5;
-  --color-brand-700: #4338ca;
+@layer base {
+  html {
+    -webkit-font-smoothing: antialiased;
+    text-rendering: optimizeLegibility;
+  }
+  body {
+    background-color: #f7f9f7;
+    background-image: radial-gradient(circle at 10% -10%, rgba(24, 121, 76, 0.06), transparent 40%),
+      radial-gradient(circle at 90% 0%, rgba(24, 121, 76, 0.05), transparent 35%);
+    background-attachment: fixed;
+  }
+  ::selection {
+    background-color: #b0e4c3;
+    color: #11402d;
+  }
+  :focus-visible {
+    outline: 2px solid #279560;
+    outline-offset: 2px;
+    border-radius: 6px;
+  }
 }
 
-html {
-  color-scheme: light;
-}
+@layer components {
+  /* ---- surfaces ---- */
+  .surface-card {
+    @apply rounded-2xl border border-black/5 bg-white/90 p-6 shadow-soft backdrop-blur-sm;
+  }
+  .surface-flat {
+    @apply rounded-2xl border border-black/5 bg-white/70 p-4;
+  }
 
-body {
-  min-height: 100dvh;
-  background-color: #f8fafc;
-  color: #0f172a;
-  font-family: var(--font-sans);
-  -webkit-font-smoothing: antialiased;
+  /* ---- buttons ---- */
+  .btn {
+    @apply inline-flex items-center justify-center gap-1.5 rounded-xl px-4 py-2 text-sm font-medium
+      transition-all duration-150 ease-out active:scale-[0.97] disabled:cursor-not-allowed disabled:opacity-50 disabled:active:scale-100;
+  }
+  .btn-primary {
+    @apply btn bg-brand-600 text-white shadow-sm hover:bg-brand-700 hover:shadow-md;
+  }
+  .btn-secondary {
+    @apply btn border border-slate-200 bg-white text-slate-700 shadow-sm hover:border-slate-300 hover:bg-slate-50;
+  }
+  .btn-ghost {
+    @apply btn text-slate-600 hover:bg-slate-100;
+  }
+  .btn-danger {
+    @apply btn border border-red-200 bg-white text-red-600 hover:bg-red-50;
+  }
+  .btn-sm {
+    @apply px-2.5 py-1 text-xs;
+  }
+
+  /* ---- inputs ---- */
+  .field-label {
+    @apply block text-sm font-medium text-slate-700;
+  }
+  .input {
+    @apply mt-1 w-full rounded-xl border border-slate-200 bg-white px-3.5 py-2.5 text-sm text-slate-900
+      transition-colors duration-150 placeholder:text-slate-400
+      focus:border-brand-500 focus:outline-none focus:ring-4 focus:ring-brand-500/15;
+  }
+  textarea.input {
+    @apply leading-relaxed;
+  }
+
+  /* ---- badges / pills ---- */
+  .pill {
+    @apply inline-flex items-center gap-1 rounded-full px-2.5 py-0.5 text-xs font-medium;
+  }
+  .pill-neutral {
+    @apply pill bg-slate-100 text-slate-600;
+  }
+  .pill-brand {
+    @apply pill bg-brand-100 text-brand-800;
+  }
+  .pill-amber {
+    @apply pill bg-amber-100 text-amber-800;
+  }
+  .pill-red {
+    @apply pill bg-red-100 text-red-700;
+  }
+  .pill-sky {
+    @apply pill bg-sky-100 text-sky-800;
+  }
+
+  .tab-btn {
+    @apply rounded-xl px-3.5 py-2 text-sm font-medium transition-all duration-150;
+  }
+  .tab-btn-active {
+    @apply tab-btn bg-brand-600 text-white shadow-sm;
+  }
+  .tab-btn-idle {
+    @apply tab-btn border border-slate-200 bg-white/80 text-slate-600 hover:border-slate-300 hover:bg-white;
+  }
 }

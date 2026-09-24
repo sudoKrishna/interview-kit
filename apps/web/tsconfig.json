@@ -1,19 +1,46 @@
 {
-  "extends": "@repo/typescript-config/nextjs.json",
   "compilerOptions": {
+    "target": "ES2022",
+    "lib": [
+      "dom",
+      "dom.iterable",
+      "esnext"
+    ],
+    "module": "ESNext",
+    "moduleResolution": "bundler",
+    "strict": true,
+    "esModuleInterop": true,
+    "skipLibCheck": true,
+    "resolveJsonModule": true,
+    "jsx": "preserve",
+    "noEmit": true,
+    "incremental": true,
+    "baseUrl": ".",
+    "paths": {
+      "@/*": [
+        "./*"
+      ],
+      "@prepkit/shared": [
+        "../../packages/shared/src/kit.ts"
+      ]
+    },
     "plugins": [
       {
         "name": "next"
       }
     ],
-    "strictNullChecks": true
+    "allowJs": true,
+    "isolatedModules": true
   },
   "include": [
-    "**/*.ts",
-    "**/*.tsx",
+    "app",
+    "components",
+    "lib",
     "next-env.d.ts",
-    "next.config.js",
+    "../../packages/shared/src",
     ".next/types/**/*.ts"
   ],
-  "exclude": ["node_modules"]
+  "exclude": [
+    "node_modules"
+  ]
 }
