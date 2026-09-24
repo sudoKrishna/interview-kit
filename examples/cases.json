@@ -1,0 +1,32 @@
+[
+  {
+    "id": "case-1",
+    "jd": "Senior Backend Engineer at Streamline (streamline.io). We are building a real-time logistics visibility platform. You will design and own backend services in Node.js and TypeScript, model event data in MongoDB and PostgreSQL, and tune our Kafka pipelines. Required: 5+ years of backend experience with Node.js, strong TypeScript, deep MongoDB experience (aggregation, sharding), Kafka in production, and experience mentoring junior engineers. You will lead incident response for our delivery SLA and work with product to shape the roadmap. Nice to have: Go, Kubernetes, experience in logistics.",
+    "company_url": "https://streamline.example.com",
+    "days": 7
+  },
+  {
+    "id": "case-2",
+    "jd": "Frontend Engineer — Design Systems at Lumen Studio. Build and maintain a React component library used by 40+ teams. Required: 3+ years React, deep CSS expertise, accessibility (WCAG 2.1), testing with Vitest and Playwright. You will partner with designers on Figma tokens and own semantic versioning of the library. Bonus: Storybook, monorepo tooling, public speaking at meetups.",
+    "company_url": "https://lumen-studio.example.com",
+    "days": 3
+  },
+  {
+    "id": "case-3-thin-jd",
+    "jd": "Hiring a dev. Must know React. Competitive pay.",
+    "company_url": "https://thin-jd.example.com",
+    "days": 2
+  },
+  {
+    "id": "case-4-dead-site",
+    "jd": "Staff Engineer at Cobalt Systems. You will lead architecture across our billing, identity and integrations domains. Required: 8+ years experience, distributed systems design, event-driven architecture, mentoring staff engineers, and driving technical strategy. You will run design reviews and own cross-cutting reliability work. Nice to have: payments domain experience.",
+    "company_url": "https://cobalt.example.invalid",
+    "days": 14
+  },
+  {
+    "id": "case-5-crawls-loosely",
+    "jd": "Data Platform Engineer at Harbor Analytics. Build ETL and streaming pipelines for our healthcare analytics product. Required: Python, SQL, Airflow, Spark, and strong data modelling. You will own pipeline reliability and partner with analysts on data quality. Bonus: dbt, Snowflake, HIPAA experience.",
+    "company_url": "http://localhost:0/",
+    "days": 1
+  }
+]

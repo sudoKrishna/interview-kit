@@ -1,0 +1,7 @@
+{
+  "name": "@prepkit/shared",
+  "version": "1.0.0",
+  "type": "module",
+  "main": "src/kit.ts",
+  "types": "src/kit.ts"
+}
