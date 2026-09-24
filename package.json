@@ -1,28 +1,16 @@
 {
   "name": "interview-prep-kit",
+  "version": "1.0.0",
   "private": true,
-  "packageManager": "npm@10.9.8",
+  "workspaces": ["packages/*", "apps/*"],
   "scripts": {
-    "dev": "turbo run dev",
-    "build": "turbo run build",
-    "start": "turbo run start",
-    "lint": "turbo run lint",
-    "check-types": "turbo run check-types",
-    "test": "turbo run test",
-    "evaluate": "tsx packages/core/src/cli/evaluate.ts",
-    "format": "prettier --write \"**/*.{ts,tsx,md,json}\""
+    "dev": "concurrently -n api,web -c blue,green \"npm run dev -w @prepkit/api\" \"npm run dev -w @prepkit/web\"",
+    "test": "npm test -w @prepkit/api",
+    "evaluate": "tsx apps/api/src/scripts/evaluate.ts"
   },
   "devDependencies": {
-    "prettier": "3.9.6",
-    "tsx": "^4.23.15",
-    "turbo": "^2.11.3",
-    "typescript": "7.0.2"
-  },
-  "engines": {
-    "node": ">=20"
-  },
-  "workspaces": [
-    "apps/*",
-    "packages/*"
-  ]
+    "concurrently": "^8.2.2",
+    "tsx": "^4.19.0",
+    "typescript": "^5.5.0"
+  }
 }
