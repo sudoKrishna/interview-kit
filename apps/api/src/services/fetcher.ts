@@ -110,7 +110,27 @@ const ALLOWED_CONTENT_TYPES = [
   "application/xhtml+xml",
 ];
 
-/** Fetch a page with size, timeout, content-type and redirect safety checks. */
+function detectBlockReason(html: string, status: number): string | null {
+  const head = html.slice(0, 4000);
+  if (/Ray ID:|Attention Required!.*Cloudflare|cf-error-details|Cloudflare Ray ID/i.test(head)) {
+    return "blocked by Cloudflare bot protection";
+  }
+  if (/Access to this page has been denied|PerimeterX|_pxhd|Please verify you are a human/i.test(head)) {
+    return "blocked by bot-mitigation challenge (PerimeterX)";
+  }
+  if (/AkamaiGHost|Reference #\d+\.[0-9a-f]+/i.test(head)) {
+    return "blocked by Akamai bot protection";
+  }
+  if (/Please enable JavaScript and cookies to continue/i.test(head)) {
+    return "blocked by a JavaScript/cookie challenge page";
+  }
+  if (status === 403 && /Access Denied|Request blocked/i.test(head)) {
+    return "blocked by the site's WAF (403)";
+  }
+  return null;
+}
+
+
 export async function fetchPage(
   rawUrl: string,
   opts: FetchOptions & { userAgent?: string; skipRobots?: boolean } = {}
@@ -139,7 +159,17 @@ export async function fetchPage(
     });
     const ct = res.headers.get("content-type") ?? "";
     if (!res.ok) {
-      return { ok: false, status: res.status, finalUrl: res.url || url.toString(), contentType: ct, body: `HTTP ${res.status}` };
+
+      let reason = `HTTP ${res.status}`;
+      if ((res.status === 403 || res.status === 503) && ct.includes("text/html")) {
+        try {
+          const peek = await res.clone().text();
+          reason = detectBlockReason(peek, res.status) ?? reason;
+        } catch {
+
+        }
+      }
+      return { ok: false, status: res.status, finalUrl: res.url || url.toString(), contentType: ct, body: reason };
     }
     if (!ALLOWED_CONTENT_TYPES.some((t) => ct.includes(t))) {
       return { ok: false, status: res.status, finalUrl: res.url || url.toString(), contentType: ct, body: `unsupported content-type: ${ct}` };
@@ -164,6 +194,11 @@ export async function fetchPage(
       chunks.push(value);
     }
     const html = Buffer.concat(chunks).toString("utf-8");
+
+    const blocked = detectBlockReason(html, res.status);
+    if (blocked) {
+      return { ok: false, status: res.status, finalUrl: res.url || url.toString(), contentType: ct, body: blocked };
+    }
     return { ok: true, status: res.status, finalUrl: res.url || url.toString(), contentType: ct, body: html };
   } catch (e: any) {
     const msg = e?.name === "AbortError" ? `timed out after ${timeoutMs}ms` : String(e?.message ?? e);
