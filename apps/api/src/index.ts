@@ -32,9 +32,9 @@ async function main() {
       store: MongoStore.create({ mongoUrl: config.mongoUri, collectionName: "sessions" }),
       cookie: {
         httpOnly: true,
-        sameSite: "lax",
+        sameSite: config.isProd ? "none" : "lax",
         secure: config.isProd,
-        maxAge: 1000 * 60 * 60 * 24 * 7, 
+        maxAge: 1000 * 60 * 60 * 24 * 7,
       },
     })
   );
